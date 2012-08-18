@@ -1,0 +1,110 @@
+.box-shadow (@x: 0, @y: 1px, @blur: 2px, @spread: 0, @color: rgba(0, 0 ,0, 0.25)) {
+	-webkit-box-shadow: @x @y @blur @spread @color;
+	   -moz-box-shadow: @x @y @blur @spread @color;
+	        box-shadow: @x @y @blur @spread @color;
+}
+.gradient (@startColor: #eee, @endColor: white) {
+	background-color: @startColor;
+	background: -webkit-gradient(linear, left top, left bottom, from(@startColor), to(@endColor));
+	background: -webkit-linear-gradient(top, @startColor, @endColor);
+	background: -moz-linear-gradient(top, @startColor, @endColor);
+	background: -ms-linear-gradient(top, @startColor, @endColor);
+	background: -o-linear-gradient(top, @startColor, @endColor);
+}
+.transition (@transition) {
+	-webkit-transition: @transition;
+	   -moz-transition: @transition;
+	    -ms-transition: @transition;
+	     -o-transition: @transition;
+}
+.border-radius (@radius: 5px) {
+	-webkit-border-radius: @radius;
+	   -moz-border-radius: @radius;
+	        border-radius: @radius;
+
+	-webkit-background-clip: padding-box;
+	   -moz-background-clip: padding;
+	        background-clip: padding-box;
+}
+
+body {
+	padding:0 2em;
+}
+
+.android_container {
+	.gradient(#A5C4D9, #05243a);
+	.border-radius(6px);
+}
+.androids {
+	font-size: 0;
+	list-style: none;
+	margin: 0;
+	padding: 5px 0;
+
+	li {
+		.box-shadow(0, 0, 4px, 0, rgba(0,0,100,0.45));
+		display: inline-block;
+		margin: 0 4px;
+
+		img {
+			height: 90px;
+			width: 120px;
+		}
+	}
+}
+
+
+.partheni_container {
+	.gradient(#899299, #05243a);
+	.border-radius(6px);
+}
+.partheni {
+	font-size: 0;
+	list-style: none;
+	margin: 0;
+	padding: 5px 0;
+
+	li {
+		.box-shadow(0, 0, 6px, 0, rgba(255,255,255,0.65));
+		.transition(all 1s);
+		display: inline-block;
+		margin: 0 12px;
+	}
+	li:hover {
+		.box-shadow(0, 0, 6px, 2px, rgba(255,255,255,1));
+		.transition(all 0.3s);
+	}
+}
+
+.liquid_carousel_wrapper {
+	.navigation {
+		.transition(all 0.3s);
+		background: transparent no-repeat center center;
+		cursor: pointer;
+		display: block;
+		height: 100%;
+		margin: 0 8px;
+		position: absolute;
+		top: 50%;
+		width: 40px;
+	}
+	.navigation.prev {
+		background-image: url('../images/liquid_prev.png');
+		left: 0;
+		top: 0;
+	}
+	.navigation.next {
+		background-image: url('../images/liquid_next.png');
+		right: 0;
+		top: 0;
+	}
+}
+
+.notice {
+	.border-radius(6px);
+	.box-shadow(0, 0, 6px, 0, rgba(60,0,0,0.8));
+	.gradient(#C29090, #C96C6C);
+	border: 1px solid #5C0606;
+	color: #5C0606;
+	padding: 8px;
+}
