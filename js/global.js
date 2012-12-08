@@ -2,17 +2,14 @@ $(document).ready(function(){
 
 	$('#android_carousel').liquidCarousel({
 		height: 108,
-		hideNavigation: false,
-		showAnimation: function(element, left) {
-			$(element).stop(true).animate({opacity: 1, left: left}, 800);
-		},
-		hideAnimation: function(element, left) {
-			$(element).stop(true).animate({opacity: 0, left: left}, 800);
-		}
+		hideNavigation: false
 	});
+
 	$('#partheni_carousel').liquidCarousel({
 		height: 170,
-		hideNavigation: true
+		hideNavigation: true,
+		animationDuration: 800,
+		noTransitions: true
 	});
 
 	 //$('#partheni_carousel').data('liquidCarousel').next();

@@ -14,12 +14,8 @@
 	defaults = {
 		height: 150,
 		hideNavigation: false,
-		showAnimation: function(element, left) {
-			$(element).css({left: left});
-		},
-		hideAnimation: function(element, left) {
-			$(element).css({left: left});
-		}
+		animationDuration: 1000,
+		noTransitions: false
 	};
 
 	function Plugin(element, options) {
@@ -36,6 +32,8 @@
 		this._displayedItems = 0;
 		this._displayedItemsWidth = 0;
 		this._direction = 'forward';
+		this._browserSupportsTransitions = false;
+		this._useTransitions = false;
 		this.init();
 	}
 
@@ -63,6 +61,10 @@
 			instance.redraw();
 		});
 
+		this._browserSupportsTransitions = this.supports('transition');
+		this._useTransitions = (this._browserSupportsTransitions && !this.options.noTransitions);
+		this.addCssTransitions();
+
 		this.redraw();
 	};
 
@@ -76,6 +78,22 @@
 				left: wrapperWidth,
 				top: Math.floor((carouselHeight - $(item).outerHeight(true)) / 2)
 			});
+		});
+	}
+
+	Plugin.prototype.addCssTransitions = function() {
+		if (!this._browserSupportsTransitions || !this._useTransitions) {
+			return;
+		}
+
+		var durationSeconds = (this.options.animationDuration / 1000);
+		var transition = 'all ' + durationSeconds + 's';
+
+		this._items.css({
+			'-webkit-transition': transition,
+			'-moz-transition': transition,
+			'-ms-transition': transition,
+			'-o-transition': transition,
 		});
 	}
 
@@ -120,20 +138,18 @@
 		var wrapperWidth = this._carouselWrapper.outerWidth(true);
 
 		for (i = 0; i < this._firstDisplayedItem; i++) {
-			this.options.hideAnimation(this._items[i], -wrapperWidth);
+			this.animateElement(this._items[i], -wrapperWidth);
 		}
 
 		for (i = (this._lastDisplayedItem + 1); i < this._totalItems; i++) {
-			this.options.hideAnimation(this._items[i], wrapperWidth);
+			this.animateElement(this._items[i], wrapperWidth);
 		}
 
 		var itemPosition = Math.floor(itemsFreemSpace / 2);
 		for (i = this._firstDisplayedItem; i <= this._lastDisplayedItem; i++) {
-			this.options.showAnimation(this._items[i], itemPosition);
+			this.animateElement(this._items[i], itemPosition);
 
 			itemPosition += $(this._items[i]).data('width') + itemsFreemSpace;
-
-
 		}
 	}
 
@@ -170,8 +186,7 @@
 		} else if (this._direction == 'backward') {
 			this._firstDisplayedItem = this.addBackwardItems(this._lastDisplayedItem);
 
-			if (this._firstDisplayedItem == 0)
-			{
+			if (this._firstDisplayedItem == 0) {
 				this._lastDisplayedItem = this.addForwardItems(this._lastDisplayedItem+1);
 			}
 
@@ -193,8 +208,7 @@
 			}
 		}
 
-		if (itemNumber == this._totalItems)
-		{
+		if (itemNumber == this._totalItems) {
 			itemNumber = (this._totalItems - 1);
 		}
 
@@ -214,8 +228,7 @@
 			}
 		};
 
-		if (itemNumber == -1)
-		{
+		if (itemNumber == -1) {
 			itemNumber = 0;
 		}
 
@@ -238,8 +251,39 @@
 		}
 	}
 
+	Plugin.prototype.animateElement = function(element, left) {
+		if (this._useTransitions) {
+			$(element).css({left: left});
+		} else {
+			$(element).stop(true).animate({left: left}, this.options.animationDuration);
+		}
+	}
+
+	// Returns if a css property is supported by the browser
+	Plugin.prototype.supports = function(cssProperty) {
+		var div = document.createElement('div'),
+			vendors = ['khtml', 'ms', 'o', 'moz', 'webkit'],
+			vendorsLength = vendors.length;
+
+		if (cssProperty in div.style) {
+			return true;
+		}
+
+		cssProperty = cssProperty.replace(/^[a-z]/, function(val) {
+			return val.toUpperCase();
+		});
+
+		while (vendorsLength--) {
+			if (vendors[vendorsLength] + cssProperty in div.style) {
+				return true;
+			}
+		}
+
+		return false;
+	};
+
 	$.fn[pluginName] = function (options) {
-		return this.each(function () {
+		return this.each(function() {
 			if (!$.data(this, pluginName)) {
 				$.data(this, pluginName, new Plugin(this, options));
 			}
