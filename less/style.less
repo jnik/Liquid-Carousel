@@ -11,12 +11,7 @@
 	background: -ms-linear-gradient(top, @startColor, @endColor);
 	background: -o-linear-gradient(top, @startColor, @endColor);
 }
-.transition (@transition) {
-	-webkit-transition: @transition;
-	   -moz-transition: @transition;
-	    -ms-transition: @transition;
-	     -o-transition: @transition;
-}
+
 .border-radius (@radius: 5px) {
 	-webkit-border-radius: @radius;
 	   -moz-border-radius: @radius;
@@ -66,19 +61,16 @@ body {
 
 	li {
 		.box-shadow(0, 0, 6px, 0, rgba(255,255,255,0.65));
-		.transition(all 1s);
 		display: inline-block;
 		margin: 0 12px;
 	}
 	li:hover {
 		.box-shadow(0, 0, 6px, 2px, rgba(255,255,255,1));
-		.transition(all 0.3s);
 	}
 }
 
 .liquid_carousel_wrapper {
 	.navigation {
-		.transition(all 0.3s);
 		background: transparent no-repeat center center;
 		cursor: pointer;
 		display: block;
