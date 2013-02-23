@@ -2,7 +2,7 @@ $(document).ready(function(){
 
 	$('#android_carousel').liquidCarousel({
 		height: 108,
-		hideNavigation: false
+		hideNavigation: false,
 	});
 
 	$('#partheni_carousel').liquidCarousel({
@@ -12,6 +12,4 @@ $(document).ready(function(){
 		noTransitions: true
 	});
 
-	 //$('#partheni_carousel').data('liquidCarousel').next();
-	 //$('#partheni_carousel').data('liquidCarousel').previous();
 });
