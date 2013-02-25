@@ -17,11 +17,11 @@
 	var pluginName = 'liquidCarousel',
 	    document   = window.document,
 		defaults   = {
-			height: 150,
+			height:            150,
 			hideNavigation:    false,
 			animationDuration: 1000,
 			noTransitions:     false,
-			touchDistance:	   25,
+			touchDistance:	   25
 		};
 
 	/**
@@ -305,7 +305,7 @@
 			'-webkit-transition': transition,
 			'-moz-transition':    transition,
 			'-ms-transition':     transition,
-			'-o-transition':      transition,
+			'-o-transition':      transition
 		});
 	}
 
