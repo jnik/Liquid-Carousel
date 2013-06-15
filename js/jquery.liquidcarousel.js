@@ -7,21 +7,25 @@
  * http://www.gnu.org/licenses/gpl.html
  */
 
+/*jslint plusplus: true, todo: true, white: true */
+/*global window, jQuery, $ */
+
 // TODO:
 //	 - See how to implement responsiveness (preferably detect changes on css)
 //	 - Implement add/remove items functionality
 //   - BUG: if the wrapper is smaller than the width of the item nothing is displayed
 
-;(function($, window, undefined) {
+;(function($, window) {
+	"use strict";
 
 	var pluginName = 'liquidCarousel',
 	    document   = window.document,
 		defaults   = {
-			height: 150,
+			height:            150,
 			hideNavigation:    false,
 			animationDuration: 1000,
 			noTransitions:     false,
-			touchDistance:	   25,
+			touchDistance:	   25
 		};
 
 	/**
@@ -32,24 +36,23 @@
 	function Plugin(element, options) {
 		this.element   = element;
 		this.options   = $.extend({}, defaults, options) ;
-		this._defaults = defaults;
-		this._name     = pluginName;
+		this.name      = pluginName;
 
-		this._carouselWrapper      = null;
-		this._carouselWrapperWidth = 0
+		this.carouselWrapper      = null;
+		this.carouselWrapperWidth = 0;
 
-		this._items             = [];
-		this._totalItems        = 0;
-		this._firstVisibleItem  = 0;
-		this._lastVisibleItem   = 0;
-		this._visibleItemsWidth = 0;
+		this.items             = [];
+		this.totalItems        = 0;
+		this.firstVisibleItem  = 0;
+		this.lastVisibleItem   = 0;
+		this.visibleItemsWidth = 0;
 
-		this._browserSupportsTransitions = false;
-		this._useTransitions             = false;
+		this.browserSupportsTransitions = false;
+		this.useTransitions             = false;
 
-		this._touchStartX  = 0;
-		this._touchEndX    = 0;
-		this._touchStarted = false;
+		this.touchStartX  = 0;
+		this.touchEndX    = 0;
+		this.touchStarted = false;
 
 		this.init();
 	}
@@ -69,16 +72,16 @@
 		});
 
 		// Set the initial css and position for all list items
-		this._items      = $(this.element).children();
-		this._totalItems = this._items.length;
+		this.items      = $(this.element).children();
+		this.totalItems = this.items.length;
 		this.initItems();
 
 		// Add the navigation buttons
 		this.addNavigation();
 
 		// Add css transitions if they are supported and are desirable
-		this._browserSupportsTransitions = this.supports('transition');
-		this._useTransitions             = (this._browserSupportsTransitions && !this.options.noTransitions);
+		this.browserSupportsTransitions = this.supports('transition');
+		this.useTransitions             = (this.browserSupportsTransitions && !this.options.noTransitions);
 		this.addCssTransitions();
 
 		// Bind redraw method to window resize
@@ -107,18 +110,20 @@
 
 		$(this.element).wrap(carouselWrapper);
 
-		this._carouselWrapper = $(this.element).parent();
+		this.carouselWrapper = $(this.element).parent();
 	};
 
 	/**
 	 * Sets the css and initial position for every item in the list
 	 */
 	Plugin.prototype.initItems = function() {
-		var wrapperWidth   = this._carouselWrapper.outerWidth(true),
-			carouselHeight = this.options.height;
+		var wrapperWidth   = this.carouselWrapper.outerWidth(true),
+			carouselHeight = this.options.height,
+			i,
+			item;
 
-		for (var i = 0; i < this._totalItems; i++) {
-			var item = this._items[i];
+		for (i = 0; i < this.totalItems; i++) {
+			item = this.items[i];
 
 			$(item).data('width',    $(item).outerWidth(true))
 				   .css({
@@ -133,33 +138,37 @@
 	 * Adds the navigation buttons and binds click events on them
 	 */
 	Plugin.prototype.addNavigation = function() {
+		var instance = this,
+			paddingLeft,
+			paddingRight,
+			navigationButtons;
+
 		// Add next and prev buttons to wrapper
-		this._carouselWrapper.prepend('<span class="navigation prev"></span>')
+		this.carouselWrapper.prepend('<span class="navigation prev"></span>')
 							 .append('<span class="navigation next"></span>');
 
 		// add padding to the wrapper equal to the buttons width
-		var paddingLeft  = $('.navigation.prev', this._carouselWrapper).outerWidth(true),
-			paddingRight = $('.navigation.next', this._carouselWrapper).outerWidth(true);
+		paddingLeft  = $('.navigation.prev', this.carouselWrapper).outerWidth(true);
+		paddingRight = $('.navigation.next', this.carouselWrapper).outerWidth(true);
 
-		this._carouselWrapper.css({
+		this.carouselWrapper.css({
 							    'padding-left':  paddingLeft,
 								'padding-right': paddingRight
 							   });
 
 		// Bind next and previous clicks
-		var instance = this;
-		$('.navigation.next', this._carouselWrapper).click(function(){
+		$('.navigation.next', this.carouselWrapper).click(function(){
 			instance.next();
 		});
-		$('.navigation.prev', this._carouselWrapper).click(function(){
+		$('.navigation.prev', this.carouselWrapper).click(function(){
 			instance.previous();
 		});
 
 		// If hide navigation is enabled display/hide buttons on wrapper hover
 		if (this.options.hideNavigation) {
-			var navigationButtons = $('span.navigation', this._carouselWrapper);
+			navigationButtons = $('span.navigation', this.carouselWrapper);
 
-			$(this._carouselWrapper).hover(
+			$(this.carouselWrapper).hover(
 				function() {
 					navigationButtons.css({opacity: 1});
 				},
@@ -176,8 +185,8 @@
 	 * Displays the next items
 	 */
 	Plugin.prototype.next = function() {
-		if (this._lastVisibleItem < (this._totalItems - 1)) {
-			this._firstVisibleItem = (this._lastVisibleItem + 1);
+		if (this.lastVisibleItem < (this.totalItems - 1)) {
+			this.firstVisibleItem = (this.lastVisibleItem + 1);
 			this.redraw('forward');
 		}
 	};
@@ -186,8 +195,8 @@
 	 * Displays the previous items
 	 */
 	Plugin.prototype.previous = function() {
-		if (this._firstVisibleItem !== 0) {
-			this._lastVisibleItem = (this._firstVisibleItem - 1);
+		if (this.firstVisibleItem !== 0) {
+			this.lastVisibleItem = (this.firstVisibleItem - 1);
 			this.redraw('backward');
 		}
 	};
@@ -196,13 +205,13 @@
 	 * Bind touch (swipe left/right) events if device supports it
 	 */
 	Plugin.prototype.bindTouchEvents = function() {
+		var instance = this;
+
 		if (!this.touchSupport()) {
 			return;
 		}
 
-		var instance = this;
-
-		$(this._carouselWrapper).bind('touchstart', function(e) {
+		$(this.carouselWrapper).bind('touchstart', function(e) {
 			instance.touchStart(e, instance);
 		});
 	};
@@ -213,10 +222,10 @@
 	 * @param {Object} instance Instance of the plugin
 	 */
 	Plugin.prototype.touchStart = function(e, instance) {
-		instance._touchStartX = e.originalEvent.touches[0].pageX;
-		instance._touchStarted = true;
+		instance.touchStartX = e.originalEvent.touches[0].pageX;
+		instance.touchStarted = true;
 
-		$(instance._carouselWrapper).bind('touchmove', function(e) {
+		$(instance.carouselWrapper).bind('touchmove', function(e) {
 			instance.touchMove(e, instance);
 		});
 	};
@@ -229,12 +238,12 @@
 	Plugin.prototype.touchMove = function(e, instance) {
 		e.preventDefault();
 
-		if (!instance._touchStarted) {
+		if (!instance.touchStarted) {
 			return;
 		}
 
 		var touchEndX        = e.originalEvent.touches[0].pageX,
-			traveledDistance = (touchEndX - instance._touchStartX),
+			traveledDistance = (touchEndX - instance.touchStartX),
 			touchDistance    = instance.options.touchDistance;
 
 		if (traveledDistance > touchDistance) {
@@ -250,9 +259,9 @@
 	 * Resets the variables used for tracking touch movement
 	 */
 	Plugin.prototype.touchEnd = function() {
-		$(this._carouselWrapper).unbind('touchend');
-		this._touchStarted = false;
-		this._touchStartX = 0;
+		$(this.carouselWrapper).unbind('touchend');
+		this.touchStarted = false;
+		this.touchStartX = 0;
 	};
 
 	/**
@@ -265,7 +274,7 @@
 			vendors       = ['khtml', 'ms', 'o', 'moz', 'webkit'],
 			vendorsLength = vendors.length;
 
-		if (cssProperty in div.style) {
+		if (div.style[cssProperty] !== undefined) {
 			return true;
 		}
 
@@ -274,7 +283,7 @@
 		});
 
 		while (vendorsLength--) {
-			if (vendors[vendorsLength] + cssProperty in div.style) {
+			if (div.style[vendors[vendorsLength] + cssProperty] !== undefined) {
 				return true;
 			}
 		}
@@ -294,104 +303,109 @@
 	 * Adds css transitions to every item in the list
 	 */
 	Plugin.prototype.addCssTransitions = function() {
-		if (!this._browserSupportsTransitions || !this._useTransitions) {
+		if (!this.browserSupportsTransitions || !this.useTransitions) {
 			return;
 		}
 
 		var durationSeconds = (this.options.animationDuration / 1000),
 			transition      = 'all ' + durationSeconds + 's';
 
-		this._items.css({
+		this.items.css({
 			'-webkit-transition': transition,
 			'-moz-transition':    transition,
 			'-ms-transition':     transition,
-			'-o-transition':      transition,
+			'-o-transition':      transition
 		});
-	}
+	};
 
 	/**
 	 * Displays the items that should be visible and hides all the rest
 	 * @param {String} direction
 	 */
 	Plugin.prototype.redraw = function(direction) {
+		var itemPosition,
+			spacing,
+			wrapperWidth,
+			i;
 
-		if (typeof direction === 'undefined' || direction !== 'backward') {
+		if (direction === undefined || direction !== 'backward') {
 			direction = 'forward';
 		}
 
-		this._carouselWrapperWidth = this._carouselWrapper.width();
+		this.carouselWrapperWidth = this.carouselWrapper.width();
 
 		// Figure out which items should be visible
 		this.calculateItemsToDisplay(direction);
 
-		var spacing      = this.getItemsExtraSpace(),
-			wrapperWidth = this._carouselWrapper.outerWidth(true),
-			i;
+		spacing      = this.getItemsExtraSpace();
+		wrapperWidth = this.carouselWrapper.outerWidth(true);
 
 		// Hide all elements before first visible one
-		for (i = 0; i < this._firstVisibleItem; i++) {
-			this.animateElement(this._items[i], -wrapperWidth);
+		for (i = 0; i < this.firstVisibleItem; i++) {
+			this.animateElement(this.items[i], -wrapperWidth);
 		}
 
 		// Hide all elements after last visible one
-		for (i = (this._lastVisibleItem + 1); i < this._totalItems; i++) {
-			this.animateElement(this._items[i], wrapperWidth);
+		for (i = (this.lastVisibleItem + 1); i < this.totalItems; i++) {
+			this.animateElement(this.items[i], wrapperWidth);
 		}
 
 		// Set the position of every visible element
-		var itemPosition = Math.floor(spacing / 2);
-		for (i = this._firstVisibleItem; i <= this._lastVisibleItem; i++) {
-			this.animateElement(this._items[i], itemPosition);
+		itemPosition = Math.floor(spacing / 2);
+		for (i = this.firstVisibleItem; i <= this.lastVisibleItem; i++) {
+			this.animateElement(this.items[i], itemPosition);
 
-			itemPosition += $(this._items[i]).data('width') + spacing;
+			itemPosition += $(this.items[i]).data('width') + spacing;
 		}
 
-	}
+	};
 
 	/**
 	 * Figures out which items should be visible and their actual width
 	 * @param {String} direction The direction to use in order to add more items
 	 */
 	Plugin.prototype.calculateItemsToDisplay = function(direction) {
-		this._visibleItemsWidth = 0;
+		var i;
 
-		if (direction == 'forward') {
-			if (this._firstVisibleItem < 0) {
-				this._firstVisibleItem = 0;
+		this.visibleItemsWidth = 0;
+
+		if (direction === 'forward') {
+			if (this.firstVisibleItem < 0) {
+				this.firstVisibleItem = 0;
 			}
 
-			var i = this._firstVisibleItem;
+			i = this.firstVisibleItem;
 
-			while (this._visibleItemsWidth + $(this._items[i]).data('width') < this._carouselWrapperWidth && i < this._totalItems) {
-				this._lastVisibleItem = i;
-				this._visibleItemsWidth += $(this._items[i]).data('width');
+			while (this.visibleItemsWidth + $(this.items[i]).data('width') < this.carouselWrapperWidth && i < this.totalItems) {
+				this.lastVisibleItem = i;
+				this.visibleItemsWidth += $(this.items[i]).data('width');
 				i++;
 			}
 
-			if (i == this._totalItems && this._firstVisibleItem !== 0) {
+			if (i === this.totalItems && this.firstVisibleItem !== 0) {
 				this.calculateItemsToDisplay('backward');
 			}
 
-		} else if (direction == 'backward') {
-			if (this._lastVisibleItem > (this._totalItems - 1)) {
-				this._lastVisibleItem = (this._totalItems - 1);
+		} else if (direction === 'backward') {
+			if (this.lastVisibleItem > (this.totalItems - 1)) {
+				this.lastVisibleItem = (this.totalItems - 1);
 			}
 
-			var i = this._lastVisibleItem;
+			i = this.lastVisibleItem;
 
-			while (this._visibleItemsWidth + $(this._items[i]).data('width') < this._carouselWrapperWidth && i >= 0) {
-				this._firstVisibleItem = i;
-				this._visibleItemsWidth += $(this._items[i]).data('width');
+			while (this.visibleItemsWidth + $(this.items[i]).data('width') < this.carouselWrapperWidth && i >= 0) {
+				this.firstVisibleItem = i;
+				this.visibleItemsWidth += $(this.items[i]).data('width');
 				i--;
 			}
 
-			if (i == -1 && this._lastVisibleItem !== (this._totalItems - 1)) {
+			if (i === -1 && this.lastVisibleItem !== (this.totalItems - 1)) {
 				this.calculateItemsToDisplay('forward');
 			}
 
 		}
 
-	}
+	};
 
 	/**
 	 * Animates the position of an element
@@ -399,28 +413,28 @@
 	 * @param {Number} left
 	 */
 	Plugin.prototype.animateElement = function(element, left) {
-		if (this._useTransitions) {
+		if (this.useTransitions) {
 			$(element).css({left: left});
 		} else {
 			$(element).stop(true).animate({left: left}, this.options.animationDuration);
 		}
-	}
+	};
 
 	/**
 	 * Returns the additional pixels to be added to items
 	 * @return {Number}
 	 */
 	Plugin.prototype.getItemsExtraSpace = function() {
-		var itemsExtraSpace = 0;
-			freeSpace       = (this._carouselWrapperWidth - this._visibleItemsWidth),
-			visibleItems    = (this._lastVisibleItem - this._firstVisibleItem + 1);
+		var itemsExtraSpace = 0,
+			freeSpace       = (this.carouselWrapperWidth - this.visibleItemsWidth),
+			visibleItems    = (this.lastVisibleItem - this.firstVisibleItem + 1);
 
 		if (freeSpace) {
 			itemsExtraSpace = Math.floor(freeSpace / visibleItems);
 		}
 
 		return itemsExtraSpace;
-	}
+	};
 
 	$.fn[pluginName] = function (options) {
 		return this.each(function() {
