@@ -2,7 +2,7 @@ $(document).ready(function(){
 
 	$('#android_carousel').liquidCarousel({
 		height: 108,
-		hideNavigation: false,
+		hideNavigation: false
 	});
 
 	$('#partheni_carousel').liquidCarousel({
