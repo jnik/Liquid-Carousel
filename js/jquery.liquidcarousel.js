@@ -7,441 +7,551 @@
  * http://www.gnu.org/licenses/gpl.html
  */
 
+ /*
+  * Based on jQuery plugin boilerplate created by Jonathan Nicol @f6design
+  * https://github.com/jnicol/jquery-plugin-boilerplate
+  */
+
 /*jslint plusplus: true, todo: true, white: true */
-/*global window, jQuery, $ */
+/*global window, document, jQuery, $ */
 
 // TODO:
 //	 - See how to implement responsiveness (preferably detect changes on css)
 //	 - Implement add/remove items functionality
+//   - Implement change speed/animation duration functionality
+//   - Expose methods for pagination (number of 'pages', current page, go to page)
+//   - Allow the removal of previous/next arrows
 //   - BUG: if the wrapper is smaller than the width of the item nothing is displayed
 
-;(function($, window) {
+;(function($) {
 	"use strict";
 
-	var pluginName = 'liquidCarousel',
-	    document   = window.document,
-		defaults   = {
-			height:            150,
-			hideNavigation:    false,
-			animationDuration: 1000,
-			noTransitions:     false,
-			touchDistance:	   25
+	var pluginName = 'liquidCarousel';
+
+	function Plugin(element, options) {
+
+		var el  = element,
+			$el = $(element),
+
+			carouselWrapper      = null,
+			carouselWrapperWidth = 0,
+
+			items             = [],
+			totalItems        = 0,
+			firstVisibleItem  = 0,
+			lastVisibleItem   = 0,
+			visibleItemsWidth = 0,
+
+			browserSupportsTransitions = false,
+			useTransitions             = false,
+
+			touchStartX  = 0,
+			touchStarted = false;
+
+		options = $.extend({}, $.fn[pluginName].defaults, options);
+
+
+		/**
+		 * Callback hooks
+		 * @param {String} hookname
+		 */
+		function hook(hookName) {
+			if (options[hookName] !== undefined) {
+				options[hookName].call(el);
+			}
+		}
+
+
+		/**
+		 * Adds a wrapper div to the the lists
+		 */
+		function addCarouselWrapper() {
+			carouselWrapper = $('<div/>')
+								  .addClass('liquid_carousel_wrapper')
+								  .css({
+									  height:   options.height,
+									  overflow: 'hidden',
+									  position: 'relative'
+								  });
+
+			$el.wrap(carouselWrapper);
+
+			carouselWrapper = $el.parent();
+		}
+
+
+		/**
+		 * Sets the css and initial position for every item in the list
+		 */
+		function initItems() {
+			var wrapperWidth   = carouselWrapper.outerWidth(true),
+				carouselHeight = options.height,
+				i,
+				item;
+
+			for (i = 0; i < totalItems; i++) {
+				item = items[i];
+
+				$(item).data('width', $(item).outerWidth(true))
+					   .css({
+							position: 'absolute',
+							left:      wrapperWidth,
+							top:       Math.floor((carouselHeight - $(item).outerHeight(true)) / 2)
+						});
+			}
+		}
+
+
+		/**
+		 * Animates the position of an element
+		 * @param {Object} element
+		 * @param {Number} left
+		 */
+		function animateElement(element, left) {
+			if (useTransitions) {
+				$(element).css({left: left});
+			} else {
+				$(element).stop(true).animate({left: left}, options.animationDuration);
+			}
+		}
+
+
+		/**
+		 * Figures out which items should be visible and their actual width
+		 * @param {String} direction The direction to use in order to add more items
+		 */
+		function calculateItemsToDisplay(direction) {
+			var i;
+
+			visibleItemsWidth = 0;
+
+			if (direction === 'forward') {
+				if (firstVisibleItem < 0) {
+					firstVisibleItem = 0;
+				}
+
+				i = firstVisibleItem;
+
+				while (visibleItemsWidth + $(items[i]).data('width') < carouselWrapperWidth && i < totalItems) {
+					lastVisibleItem = i;
+					visibleItemsWidth += $(items[i]).data('width');
+					i++;
+				}
+
+				if (i === totalItems && firstVisibleItem !== 0) {
+					calculateItemsToDisplay('backward');
+				}
+
+			} else if (direction === 'backward') {
+				if (lastVisibleItem > (totalItems - 1)) {
+					lastVisibleItem = (totalItems - 1);
+				}
+
+				i = lastVisibleItem;
+
+				while (visibleItemsWidth + $(items[i]).data('width') < carouselWrapperWidth && i >= 0) {
+					firstVisibleItem = i;
+					visibleItemsWidth += $(items[i]).data('width');
+					i--;
+				}
+
+				if (i === -1 && lastVisibleItem !== (totalItems - 1)) {
+					calculateItemsToDisplay('forward');
+				}
+
+			}
+
+		}
+		
+
+		/**
+		 * Returns the additional pixels to be added to items
+		 * @return {Number}
+		 */
+		function getItemsExtraSpace() {
+			var itemsExtraSpace = 0,
+				freeSpace       = (carouselWrapperWidth - visibleItemsWidth),
+				visibleItems    = (lastVisibleItem - firstVisibleItem + 1);
+
+			if (freeSpace) {
+				itemsExtraSpace = Math.floor(freeSpace / visibleItems);
+			}
+
+			return itemsExtraSpace;
+		}
+
+
+		/**
+		 * Displays the items that should be visible and hides all the rest
+		 * @param {String} direction
+		 */
+		function redraw(direction) {
+			var itemPosition,
+				spacing,
+				wrapperWidth,
+				i;
+
+			if (direction === undefined || direction !== 'backward') {
+				direction = 'forward';
+			}
+
+			carouselWrapperWidth = carouselWrapper.width();
+
+			// Figure out which items should be visible
+			calculateItemsToDisplay(direction);
+
+			spacing      = getItemsExtraSpace();
+			wrapperWidth = carouselWrapper.outerWidth(true);
+
+			// Hide all elements before first visible one
+			for (i = 0; i < firstVisibleItem; i++) {
+				animateElement(items[i], -wrapperWidth);
+			}
+
+			// Hide all elements after last visible one
+			for (i = (lastVisibleItem + 1); i < totalItems; i++) {
+				animateElement(items[i], wrapperWidth);
+			}
+
+			// Set the position of every visible element
+			itemPosition = Math.floor(spacing / 2);
+			for (i = firstVisibleItem; i <= lastVisibleItem; i++) {
+				animateElement(items[i], itemPosition);
+
+				itemPosition += $(items[i]).data('width') + spacing;
+			}
+
+		}
+
+
+		/**
+		 * Displays the next items
+		 */
+		function next() {
+			if (lastVisibleItem < (totalItems - 1)) {
+				hook('onBeforeNext');
+				firstVisibleItem = (lastVisibleItem + 1);
+				redraw('forward');
+			}
+		}
+
+
+		/**
+		 * Displays the previous items
+		 */
+		function previous() {
+			if (firstVisibleItem !== 0) {
+				hook('onBeforePrevious');
+				lastVisibleItem = (firstVisibleItem - 1);
+				redraw('backward');
+			}
+		}
+
+
+		/**
+		 * Adds the navigation buttons and binds click events on them
+		 */
+		function addNavigation() {
+			var paddingLeft,
+				paddingRight,
+				navigationButtons;
+
+			// Add next and prev buttons to wrapper
+			carouselWrapper.prepend('<span class="navigation prev"></span>')
+						   .append('<span class="navigation next"></span>');
+
+			// add padding to the wrapper equal to the buttons width
+			paddingLeft  = $('.navigation.prev', carouselWrapper).outerWidth(true);
+			paddingRight = $('.navigation.next', carouselWrapper).outerWidth(true);
+
+			carouselWrapper.css({
+								 'padding-left':  paddingLeft,
+								 'padding-right': paddingRight
+								});
+
+			// Bind next and previous clicks
+			$('.navigation.next', carouselWrapper).click(function(){
+				next();
+			});
+			$('.navigation.prev', carouselWrapper).click(function(){
+				previous();
+			});
+
+			// If hide navigation is enabled display/hide buttons on wrapper hover
+			if (options.hideNavigation) {
+				navigationButtons = $('span.navigation', carouselWrapper);
+
+				$(carouselWrapper).hover(
+					function() {
+						navigationButtons.css({opacity: 1});
+					},
+					function() {
+						navigationButtons.css({opacity: 0});
+					}
+				);
+
+				navigationButtons.css({opacity: 0});
+			}
+		}
+
+
+		/**
+		 * Returns if a the browser has touch support
+		 * @return {Boolean}
+		 */
+		function touchSupport() {
+			return !!('ontouchstart' in window) || !!('onmsgesturechange' in window);
+		}
+
+
+		/**
+		 * Resets the variables used for tracking touch movement
+		 */
+		function touchEnd() {
+			$(carouselWrapper).unbind('touchend');
+			touchStarted = false;
+			touchStartX = 0;
+		}
+
+
+		/**
+		 * Checks if finger has travelled more than the defined distance and calls next or previous methods
+		 * @param {Object} e The fired event
+		 */
+		function touchMove(e) {
+			e.preventDefault();
+
+			if (!touchStarted) {
+				return;
+			}
+
+			var touchEndX        = e.originalEvent.touches[0].pageX,
+				traveledDistance = (touchEndX - touchStartX),
+				touchDistance    = options.touchDistance;
+
+			if (traveledDistance > touchDistance) {
+				touchEnd();
+				previous();
+			} else if (traveledDistance < -touchDistance) {
+				touchEnd();
+				next();
+			}
+		}
+
+
+		/**
+		 * Gets the touch start position and binds touch move method
+		 * @param {Object} e The fired event
+		 */
+		function touchStart(e) {
+			touchStartX = e.originalEvent.touches[0].pageX;
+			touchStarted = true;
+
+			$(carouselWrapper).bind('touchmove', function(e) {
+				touchMove(e);
+			});
+		}
+
+
+		/**
+		 * Bind touch (swipe left/right) events if device supports it
+		 */
+		function bindTouchEvents() {
+			if (!touchSupport()) {
+				return;
+			}
+
+			$(carouselWrapper).bind('touchstart', function(e) {
+				touchStart(e);
+			});
+		}
+
+
+		/**
+		 * Returns if a css property is supported by the browser
+		 * @param {String} cssProperty
+		 * @return {Boolean}
+		 */
+		function supports(cssProperty) {
+			var div           = document.createElement('div'),
+				vendors       = ['khtml', 'ms', 'o', 'moz', 'webkit'],
+				vendorsLength = vendors.length;
+
+			if (div.style[cssProperty] !== undefined) {
+				return true;
+			}
+
+			cssProperty = cssProperty.replace(/^[a-z]/, function(val) {
+				return val.toUpperCase();
+			});
+
+			while (vendorsLength--) {
+				if (div.style[vendors[vendorsLength] + cssProperty] !== undefined) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+
+		/**
+		 * Adds css transitions to every item in the list
+		 */
+		function addCssTransitions() {
+			if (!browserSupportsTransitions || !useTransitions) {
+				return;
+			}
+
+			var durationSeconds = (options.animationDuration / 1000),
+				transition      = 'all ' + durationSeconds + 's';
+
+			items.css({
+				'-webkit-transition': transition,
+				'-moz-transition':    transition,
+				'-ms-transition':     transition,
+				'-o-transition':      transition
+			});
+		}
+
+
+		/**
+		 * Get/set a plugin option.
+		 * Get usage: $('#el').demoplugin('option', 'key');
+		 * Set usage: $('#el').demoplugin('option', 'key', value);
+		 */
+		function option (key, val) {
+			if (val) {
+				options[key] = val;
+			} else {
+				return options[key];
+			}
+		}
+
+
+		/**
+		 * Destroys the plugin
+		 */
+		function destroy() {
+			// Iterate over each matching element.
+			$el.each(function() {
+				var $el = $(this);
+
+				// Add code to restore the element to its original state...
+				hook('onDestroy');
+
+				// Remove Plugin instance from the element.
+				$el.removeData('plugin_' + pluginName);
+			});
+		}
+
+
+		/**
+		 * Initialize plugin.
+		 */
+		function init() {
+			// Add a wrapper to the list			
+			addCarouselWrapper();
+
+			// Set the style of the list
+			$el.css({
+				height:   options.height,
+				position: 'relative',
+				overflow: 'hidden'
+			});
+
+			// Set the initial css and position for all list items
+			items      = $el.children();
+			totalItems = items.length;
+			initItems();
+
+			// Add the navigation buttons
+			addNavigation();
+
+			// Add css transitions if they are supported and are desirable
+			browserSupportsTransitions = supports('transition');
+			useTransitions             = (browserSupportsTransitions && !options.noTransitions);
+			addCssTransitions();
+
+			// Bind redraw method to window resize
+			$(window).bind('resize.liquidCarousel', function() {
+				redraw();
+			});
+
+			// Bind touch events
+			bindTouchEvents();
+
+			redraw();
+
+			hook('onInit');
+		}
+
+
+		// Initialize the plugin instance
+		init();
+
+		// Public methods
+		return {
+			option:   option,
+			destroy:  destroy,
+			next:     next,
+			previous: previous
 		};
 
-	/**
-	 * The constructor of the plugin
-	 * @param {Object} element
-	 * @param {Object} options
-	 */
-	function Plugin(element, options) {
-		this.element   = element;
-		this.options   = $.extend({}, defaults, options) ;
-		this.name      = pluginName;
-
-		this.carouselWrapper      = null;
-		this.carouselWrapperWidth = 0;
-
-		this.items             = [];
-		this.totalItems        = 0;
-		this.firstVisibleItem  = 0;
-		this.lastVisibleItem   = 0;
-		this.visibleItemsWidth = 0;
-
-		this.browserSupportsTransitions = false;
-		this.useTransitions             = false;
-
-		this.touchStartX  = 0;
-		this.touchEndX    = 0;
-		this.touchStarted = false;
-
-		this.init();
 	}
 
 	/**
-	 * Plugin initialization
+	 * Plugin definition
 	 */
-	Plugin.prototype.init = function() {
-		// Add a wrapper to the list
-		this.addCarouselWrapper();
+	$.fn[pluginName] = function(options) {
+		// If the first parameter is a string, treat this as a call to a public method
+		if (typeof arguments[0] === 'string') {
+			var methodName = arguments[0],
+				args       = Array.prototype.slice.call(arguments, 1),
+				returnVal;
 
-		// Set the style of the list
-		$(this.element).css({
-			height:   this.options.height,
-			position: 'relative',
-			overflow: 'hidden'
-		});
-
-		// Set the initial css and position for all list items
-		this.items      = $(this.element).children();
-		this.totalItems = this.items.length;
-		this.initItems();
-
-		// Add the navigation buttons
-		this.addNavigation();
-
-		// Add css transitions if they are supported and are desirable
-		this.browserSupportsTransitions = this.supports('transition');
-		this.useTransitions             = (this.browserSupportsTransitions && !this.options.noTransitions);
-		this.addCssTransitions();
-
-		// Bind redraw method to window resize
-		var instance = this;
-		$(window).bind('resize.liquidCarousel', function() {
-			instance.redraw();
-		});
-
-		// Bind touch events
-		this.bindTouchEvents();
-
-		this.redraw();
-	};
-
-	/**
-	 * Adds a wrapper div to the the lists
-	 */
-	Plugin.prototype.addCarouselWrapper = function() {
-		var carouselWrapper = $('<div/>')
-							  .addClass('liquid_carousel_wrapper')
-							  .css({
-								  height:   this.options.height,
-								  overflow: 'hidden',
-								  position: 'relative'
-							  });
-
-		$(this.element).wrap(carouselWrapper);
-
-		this.carouselWrapper = $(this.element).parent();
-	};
-
-	/**
-	 * Sets the css and initial position for every item in the list
-	 */
-	Plugin.prototype.initItems = function() {
-		var wrapperWidth   = this.carouselWrapper.outerWidth(true),
-			carouselHeight = this.options.height,
-			i,
-			item;
-
-		for (i = 0; i < this.totalItems; i++) {
-			item = this.items[i];
-
-			$(item).data('width',    $(item).outerWidth(true))
-				   .css({
-						position: 'absolute',
-						left:      wrapperWidth,
-						top:       Math.floor((carouselHeight - $(item).outerHeight(true)) / 2)
-					});
-		}
-	};
-
-	/**
-	 * Adds the navigation buttons and binds click events on them
-	 */
-	Plugin.prototype.addNavigation = function() {
-		var instance = this,
-			paddingLeft,
-			paddingRight,
-			navigationButtons;
-
-		// Add next and prev buttons to wrapper
-		this.carouselWrapper.prepend('<span class="navigation prev"></span>')
-							 .append('<span class="navigation next"></span>');
-
-		// add padding to the wrapper equal to the buttons width
-		paddingLeft  = $('.navigation.prev', this.carouselWrapper).outerWidth(true);
-		paddingRight = $('.navigation.next', this.carouselWrapper).outerWidth(true);
-
-		this.carouselWrapper.css({
-							    'padding-left':  paddingLeft,
-								'padding-right': paddingRight
-							   });
-
-		// Bind next and previous clicks
-		$('.navigation.next', this.carouselWrapper).click(function(){
-			instance.next();
-		});
-		$('.navigation.prev', this.carouselWrapper).click(function(){
-			instance.previous();
-		});
-
-		// If hide navigation is enabled display/hide buttons on wrapper hover
-		if (this.options.hideNavigation) {
-			navigationButtons = $('span.navigation', this.carouselWrapper);
-
-			$(this.carouselWrapper).hover(
-				function() {
-					navigationButtons.css({opacity: 1});
-				},
-				function() {
-					navigationButtons.css({opacity: 0});
+			this.each(function() {
+				// Check that the element has a plugin instance, and that the requested public method exists
+				if ($.data(this, 'plugin_' + pluginName) && typeof $.data(this, 'plugin_' + pluginName)[methodName] === 'function') {
+					// Call the method of the Plugin instance, and Pass it the supplied arguments
+					returnVal = $.data(this, 'plugin_' + pluginName)[methodName].apply(this, args);
+				} else {
+					throw new Error('Method ' +  methodName + ' does not exist on jQuery.' + pluginName);
 				}
-			);
+			});
 
-			navigationButtons.css({opacity: 0});
-		}
-	};
-
-	/**
-	 * Displays the next items
-	 */
-	Plugin.prototype.next = function() {
-		if (this.lastVisibleItem < (this.totalItems - 1)) {
-			this.firstVisibleItem = (this.lastVisibleItem + 1);
-			this.redraw('forward');
-		}
-	};
-
-	/**
-	 * Displays the previous items
-	 */
-	Plugin.prototype.previous = function() {
-		if (this.firstVisibleItem !== 0) {
-			this.lastVisibleItem = (this.firstVisibleItem - 1);
-			this.redraw('backward');
-		}
-	};
-
-	/**
-	 * Bind touch (swipe left/right) events if device supports it
-	 */
-	Plugin.prototype.bindTouchEvents = function() {
-		var instance = this;
-
-		if (!this.touchSupport()) {
-			return;
-		}
-
-		$(this.carouselWrapper).bind('touchstart', function(e) {
-			instance.touchStart(e, instance);
-		});
-	};
-
-	/**
-	 * Gets the touch start position and binds touch move method
-	 * @param {Object} e        The fired event
-	 * @param {Object} instance Instance of the plugin
-	 */
-	Plugin.prototype.touchStart = function(e, instance) {
-		instance.touchStartX = e.originalEvent.touches[0].pageX;
-		instance.touchStarted = true;
-
-		$(instance.carouselWrapper).bind('touchmove', function(e) {
-			instance.touchMove(e, instance);
-		});
-	};
-
-	/**
-	 * Checks if finger has travelled more than the defined distance and calls next or previous methods
-	 * @param {Object} e        The fired event
-	 * @param {Object} instance Instance of the plugin
-	 */
-	Plugin.prototype.touchMove = function(e, instance) {
-		e.preventDefault();
-
-		if (!instance.touchStarted) {
-			return;
-		}
-
-		var touchEndX        = e.originalEvent.touches[0].pageX,
-			traveledDistance = (touchEndX - instance.touchStartX),
-			touchDistance    = instance.options.touchDistance;
-
-		if (traveledDistance > touchDistance) {
-			instance.touchEnd();
-			instance.previous();
-		} else if (traveledDistance < -touchDistance) {
-			instance.touchEnd();
-			instance.next();
-		}
-	};
-
-	/**
-	 * Resets the variables used for tracking touch movement
-	 */
-	Plugin.prototype.touchEnd = function() {
-		$(this.carouselWrapper).unbind('touchend');
-		this.touchStarted = false;
-		this.touchStartX = 0;
-	};
-
-	/**
-	 * Returns if a css property is supported by the browser
-	 * @param {String} cssProperty
-	 * @return {Boolean}
-	 */
-	Plugin.prototype.supports = function(cssProperty) {
-		var div           = document.createElement('div'),
-			vendors       = ['khtml', 'ms', 'o', 'moz', 'webkit'],
-			vendorsLength = vendors.length;
-
-		if (div.style[cssProperty] !== undefined) {
-			return true;
-		}
-
-		cssProperty = cssProperty.replace(/^[a-z]/, function(val) {
-			return val.toUpperCase();
-		});
-
-		while (vendorsLength--) {
-			if (div.style[vendors[vendorsLength] + cssProperty] !== undefined) {
-				return true;
-			}
-		}
-
-		return false;
-	};
-
-	/**
-	 * Returns if a the browser has touch support
-	 * @return {Boolean}
-	 */
-	Plugin.prototype.touchSupport = function() {
-		return !!('ontouchstart' in window) || !!('onmsgesturechange' in window);
-	};
-
-	/**
-	 * Adds css transitions to every item in the list
-	 */
-	Plugin.prototype.addCssTransitions = function() {
-		if (!this.browserSupportsTransitions || !this.useTransitions) {
-			return;
-		}
-
-		var durationSeconds = (this.options.animationDuration / 1000),
-			transition      = 'all ' + durationSeconds + 's';
-
-		this.items.css({
-			'-webkit-transition': transition,
-			'-moz-transition':    transition,
-			'-ms-transition':     transition,
-			'-o-transition':      transition
-		});
-	};
-
-	/**
-	 * Displays the items that should be visible and hides all the rest
-	 * @param {String} direction
-	 */
-	Plugin.prototype.redraw = function(direction) {
-		var itemPosition,
-			spacing,
-			wrapperWidth,
-			i;
-
-		if (direction === undefined || direction !== 'backward') {
-			direction = 'forward';
-		}
-
-		this.carouselWrapperWidth = this.carouselWrapper.width();
-
-		// Figure out which items should be visible
-		this.calculateItemsToDisplay(direction);
-
-		spacing      = this.getItemsExtraSpace();
-		wrapperWidth = this.carouselWrapper.outerWidth(true);
-
-		// Hide all elements before first visible one
-		for (i = 0; i < this.firstVisibleItem; i++) {
-			this.animateElement(this.items[i], -wrapperWidth);
-		}
-
-		// Hide all elements after last visible one
-		for (i = (this.lastVisibleItem + 1); i < this.totalItems; i++) {
-			this.animateElement(this.items[i], wrapperWidth);
-		}
-
-		// Set the position of every visible element
-		itemPosition = Math.floor(spacing / 2);
-		for (i = this.firstVisibleItem; i <= this.lastVisibleItem; i++) {
-			this.animateElement(this.items[i], itemPosition);
-
-			itemPosition += $(this.items[i]).data('width') + spacing;
-		}
-
-	};
-
-	/**
-	 * Figures out which items should be visible and their actual width
-	 * @param {String} direction The direction to use in order to add more items
-	 */
-	Plugin.prototype.calculateItemsToDisplay = function(direction) {
-		var i;
-
-		this.visibleItemsWidth = 0;
-
-		if (direction === 'forward') {
-			if (this.firstVisibleItem < 0) {
-				this.firstVisibleItem = 0;
+			// If the method returned a value, return the value
+			if (returnVal !== undefined) {
+				return returnVal;
 			}
 
-			i = this.firstVisibleItem;
+			// Otherwise, returning 'this' preserves chainability
+			return this;
+		} 
 
-			while (this.visibleItemsWidth + $(this.items[i]).data('width') < this.carouselWrapperWidth && i < this.totalItems) {
-				this.lastVisibleItem = i;
-				this.visibleItemsWidth += $(this.items[i]).data('width');
-				i++;
-			}
-
-			if (i === this.totalItems && this.firstVisibleItem !== 0) {
-				this.calculateItemsToDisplay('backward');
-			}
-
-		} else if (direction === 'backward') {
-			if (this.lastVisibleItem > (this.totalItems - 1)) {
-				this.lastVisibleItem = (this.totalItems - 1);
-			}
-
-			i = this.lastVisibleItem;
-
-			while (this.visibleItemsWidth + $(this.items[i]).data('width') < this.carouselWrapperWidth && i >= 0) {
-				this.firstVisibleItem = i;
-				this.visibleItemsWidth += $(this.items[i]).data('width');
-				i--;
-			}
-
-			if (i === -1 && this.lastVisibleItem !== (this.totalItems - 1)) {
-				this.calculateItemsToDisplay('forward');
-			}
-
-		}
-
-	};
-
-	/**
-	 * Animates the position of an element
-	 * @param {Object} element
-	 * @param {Number} left
-	 */
-	Plugin.prototype.animateElement = function(element, left) {
-		if (this.useTransitions) {
-			$(element).css({left: left});
-		} else {
-			$(element).stop(true).animate({left: left}, this.options.animationDuration);
+		// If the first parameter is an object (options), or was omitted, instantiate a new instance of the plugin
+		if (typeof options === 'object' || !options) {
+			return this.each(function() {
+				// Only allow the plugin to be instantiated once
+				if (!$.data(this, 'plugin_' + pluginName)) {
+					// Pass options to Plugin constructor, and store Plugin instance in the elements jQuery data object
+					$.data(this, 'plugin_' + pluginName, new Plugin(this, options));
+				}
+			});
 		}
 	};
 
-	/**
-	 * Returns the additional pixels to be added to items
-	 * @return {Number}
-	 */
-	Plugin.prototype.getItemsExtraSpace = function() {
-		var itemsExtraSpace = 0,
-			freeSpace       = (this.carouselWrapperWidth - this.visibleItemsWidth),
-			visibleItems    = (this.lastVisibleItem - this.firstVisibleItem + 1);
-
-		if (freeSpace) {
-			itemsExtraSpace = Math.floor(freeSpace / visibleItems);
-		}
-
-		return itemsExtraSpace;
+	// Default values
+	$.fn[pluginName].defaults = {
+		onInit:            function() {},
+		onDestroy:         function() {},
+		onBeforeNext:      function() {},
+		onBeforePrevious:  function() {},
+		height:            150,
+		hideNavigation:    false,
+		animationDuration: 1000,
+		noTransitions:     false,
+		touchDistance:	   25
 	};
 
-	$.fn[pluginName] = function (options) {
-		return this.each(function() {
-			if (!$.data(this, pluginName)) {
-				$.data(this, pluginName, new Plugin(this, options));
-			}
-		});
-	};
-
-}(jQuery, window));
+})(jQuery);
